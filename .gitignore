@@ -2,3 +2,7 @@ tags
 test.sh
 .luarc.json
 nvim
+.git
+.github
+.DS_Store
+.env
