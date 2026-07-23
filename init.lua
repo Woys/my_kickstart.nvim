@@ -942,6 +942,14 @@ local plugin_specs = {
     end,
   },
 
+  {
+    'hedyhli/outline.nvim',
+    config = function()
+      require('outline').setup {}
+      vim.keymap.set('n', '<leader>o', '<cmd>Outline<CR>', { desc = 'Toggle symbol outline' })
+    end,
+  },
+
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
     config = function()
