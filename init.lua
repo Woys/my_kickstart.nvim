@@ -943,26 +943,6 @@ local plugin_specs = {
   },
 
   {
-    'folke/snacks.nvim',
-    config = function()
-      require('snacks').setup {
-        scroll = {
-          enabled = true,
-          animate = {
-            duration = { step = 10, total = 180 },
-            easing = 'outQuad',
-          },
-          animate_repeat = {
-            delay = 100,
-            duration = { step = 5, total = 50 },
-            easing = 'linear',
-          },
-        },
-      }
-    end,
-  },
-
-  {
     'hedyhli/outline.nvim',
     config = function()
       require('outline').setup {
