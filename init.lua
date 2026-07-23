@@ -205,7 +205,7 @@ local function toggle_file_tree()
     end
   end
 
-  vim.cmd 'leftabove 70vnew'
+  vim.cmd 'topleft 70vnew'
   vim.cmd 'Explore'
 end
 
