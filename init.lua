@@ -284,6 +284,16 @@ vim.api.nvim_create_autocmd('FileType', {
   end,
 })
 
+-- Keep the netrw tree out of buffer pickers such as <Space><Space>.
+vim.api.nvim_create_autocmd('FileType', {
+  desc = 'Hide netrw from buffer lists',
+  group = vim.api.nvim_create_augroup('kickstart-hide-netrw-buffer', { clear = true }),
+  pattern = 'netrw',
+  callback = function(event)
+    vim.bo[event.buf].buflisted = false
+  end,
+})
+
 vim.cmd 'syntax on'
 vim.cmd 'filetype plugin indent on'
 
