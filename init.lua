@@ -214,9 +214,11 @@ local function toggle_file_tree()
     end
   end
 
+  local editor_win = vim.api.nvim_get_current_win()
   local tree_width = math.max(12, math.floor(vim.o.columns * 0.25))
   vim.cmd('topleft ' .. tree_width .. 'vnew')
   vim.cmd 'Explore'
+  vim.g.netrw_chgwin = vim.fn.win_id2win(editor_win)
 end
 
 vim.keymap.set('n', '<C-w>t', toggle_file_tree, { desc = 'Toggle file tree' })
