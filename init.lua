@@ -284,13 +284,15 @@ vim.api.nvim_create_autocmd('FileType', {
   end,
 })
 
--- Keep the netrw tree out of buffer pickers such as <Space><Space>.
+-- Keep the netrw tree out of buffer pickers and show absolute line numbers.
 vim.api.nvim_create_autocmd('FileType', {
-  desc = 'Hide netrw from buffer lists',
+  desc = 'Configure netrw file tree',
   group = vim.api.nvim_create_augroup('kickstart-hide-netrw-buffer', { clear = true }),
   pattern = 'netrw',
   callback = function(event)
     vim.bo[event.buf].buflisted = false
+    vim.wo.number = true
+    vim.wo.relativenumber = false
   end,
 })
 
