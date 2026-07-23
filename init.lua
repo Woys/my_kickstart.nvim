@@ -93,6 +93,11 @@ vim.g.maplocalleader = ' '
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
 
+-- Open files from netrw in a vertical split on the right.
+vim.g.netrw_altv = 1
+vim.g.netrw_winsize = -70
+vim.g.netrw_liststyle = 3
+
 -- [[ Setting options ]]
 -- See `:help vim.o`
 -- NOTE: You can change these options as you wish!
@@ -102,7 +107,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -117,6 +122,22 @@ vim.o.showmode = false
 vim.schedule(function()
   vim.o.clipboard = 'unnamedplus'
 end)
+
+-- Use OSC 52 for clipboard access in SSH sessions. Local sessions continue to
+-- use the system clipboard provider (wl-clipboard on Wayland).
+if vim.env.SSH_CONNECTION or vim.env.SSH_TTY then
+  vim.g.clipboard = {
+    name = 'OSC 52',
+    copy = {
+      ['+'] = require('vim.ui.clipboard.osc52').copy '+',
+      ['*'] = require('vim.ui.clipboard.osc52').copy '*',
+    },
+    paste = {
+      ['+'] = require('vim.ui.clipboard.osc52').paste '+',
+      ['*'] = require('vim.ui.clipboard.osc52').paste '*',
+    },
+  }
+end
 
 -- Enable break indent
 vim.o.breakindent = true
@@ -173,6 +194,28 @@ vim.o.confirm = true
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
+-- Toggle netrw's tree-style file explorer on the left. This avoids an
+-- upstream :Lexplore window-targeting bug in the bundled netrw version.
+local function toggle_file_tree()
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.bo[buf].filetype == 'netrw' then
+      vim.api.nvim_win_close(win, true)
+      return
+    end
+  end
+
+  vim.cmd 'leftabove 70vnew'
+  vim.cmd 'Explore'
+end
+
+vim.keymap.set('n', '<C-w>t', toggle_file_tree, { desc = 'Toggle file tree' })
+
+-- Delete without overwriting the current register.
+vim.keymap.set('n', 'dd', '"_dd', { desc = 'Delete line without yanking' })
+vim.keymap.set('x', 'd', '"_d', { desc = 'Delete selection without yanking' })
+vim.keymap.set('n', 'x', '"_x', { desc = 'Delete character without yanking' })
+
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
@@ -219,33 +262,24 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
--- [[ Install `lazy.nvim` plugin manager ]]
---    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
-local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
-  local lazyrepo = 'https://github.com/folke/lazy.nvim.git'
-  local out = vim.fn.system { 'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo, lazypath }
-  if vim.v.shell_error ~= 0 then
-    error('Error cloning lazy.nvim:\n' .. out)
-  end
-end
+-- Do not automatically continue comments after pressing Enter or using o/O.
+vim.api.nvim_create_autocmd('FileType', {
+  desc = 'Disable automatic comment continuation',
+  group = vim.api.nvim_create_augroup('kickstart-no-comment-continuation', { clear = true }),
+  pattern = '*',
+  callback = function()
+    vim.opt_local.formatoptions:remove { 'r', 'o' }
+  end,
+})
 
----@type vim.Option
-local rtp = vim.opt.rtp
-rtp:prepend(lazypath)
+vim.cmd 'syntax on'
+vim.cmd 'filetype plugin indent on'
 
--- [[ Configure and install plugins ]]
+-- [[ Install and configure plugins with Neovim's built-in vim.pack ]]
 --
---  To check the current status of your plugins, run
---    :Lazy
---
---  You can press `?` in this menu for help. Use `:q` to close the window
---
---  To update plugins you can run
---    :Lazy update
---
--- NOTE: Here is where you install your plugins.
-require('lazy').setup({
+-- Update plugins with `:lua vim.pack.update()`. Review the changes, then
+-- `:write` to accept them or `:quit` to discard them.
+local plugin_specs = {
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'NMAC427/guess-indent.nvim', -- Detect tabstop and shiftwidth automatically
 
@@ -482,7 +516,9 @@ require('lazy').setup({
       -- Automatically install LSPs and related tools to stdpath for Neovim
       -- Mason must be loaded before its dependents so we need to set it up here.
       -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
-      { 'mason-org/mason.nvim', opts = {} },
+      -- Prefer tools installed by NixOS. Mason may still manage tools that are
+      -- not packaged system-wide, but it must not shadow native Nix binaries.
+      { 'mason-org/mason.nvim', opts = { PATH = 'skip' } },
       'mason-org/mason-lspconfig.nvim',
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
@@ -490,7 +526,7 @@ require('lazy').setup({
       { 'j-hui/fidget.nvim', opts = {} },
 
       -- Allows extra capabilities provided by blink.cmp
-      'saghen/blink.cmp',
+      { 'saghen/blink.cmp', version = '1.*' },
     },
     config = function()
       -- Brief aside: **What is LSP?**
@@ -899,7 +935,12 @@ require('lazy').setup({
   },
 
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  {
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = { signs = false },
+  },
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
@@ -940,11 +981,24 @@ require('lazy').setup({
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    branch = 'master',
     build = ':TSUpdate',
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = {
+        'bash',
+        'c',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+      },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -986,31 +1040,106 @@ require('lazy').setup({
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   -- { import = 'custom.plugins' },
   --
-  -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
-  -- Or use telescope!
-  -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
-  -- you can continue same window with `<space>sr` which resumes last telescope search
-}, {
-  ui = {
-    -- If you are using a Nerd Font: set icons to an empty table which will use the
-    -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table
-    icons = vim.g.have_nerd_font and {} or {
-      cmd = '⌘',
-      config = '🛠',
-      event = '📅',
-      ft = '📂',
-      init = '⚙',
-      keys = '🗝',
-      plugin = '🔌',
-      runtime = '💻',
-      require = '🌙',
-      source = '📄',
-      start = '🚀',
-      task = '📌',
-      lazy = '💤 ',
-    },
-  },
+  -- See `:help vim.pack` for plugin installation, updates, and lockfile details.
+}
+
+local function plugin_name(spec)
+  local source = type(spec) == 'string' and spec or spec[1]
+  return source:match('/([^/]+)$'):gsub('%.git$', '')
+end
+
+local function plugin_module(spec)
+  if spec.main then
+    return spec.main
+  end
+
+  local modules = {
+    ['blink.cmp'] = 'blink.cmp',
+    ['conform.nvim'] = 'conform',
+    ['fidget.nvim'] = 'fidget',
+    ['gitsigns.nvim'] = 'gitsigns',
+    ['lazydev.nvim'] = 'lazydev',
+    ['LuaSnip'] = 'luasnip',
+    ['mason.nvim'] = 'mason',
+    ['mini.nvim'] = 'mini',
+    ['nvim-treesitter'] = 'nvim-treesitter.configs',
+    ['todo-comments.nvim'] = 'todo-comments',
+    ['which-key.nvim'] = 'which-key',
+  }
+  return modules[plugin_name(spec)] or plugin_name(spec):gsub('^nvim%-', ''):gsub('%.nvim$', '')
+end
+
+local ordered_specs, seen = {}, {}
+local function collect(spec)
+  if type(spec) == 'string' then
+    spec = { spec }
+  end
+  if spec.enabled == false or (type(spec.cond) == 'function' and not spec.cond()) then
+    return
+  end
+  for _, dependency in ipairs(spec.dependencies or {}) do
+    collect(dependency)
+  end
+  local name = plugin_name(spec)
+  if not seen[name] then
+    seen[name] = true
+    table.insert(ordered_specs, spec)
+  end
+end
+for _, spec in ipairs(plugin_specs) do
+  collect(spec)
+end
+
+local build_commands = {}
+vim.api.nvim_create_autocmd('PackChanged', {
+  callback = function(event)
+    if event.data.kind ~= 'install' and event.data.kind ~= 'update' then
+      return
+    end
+    local command = build_commands[event.data.spec.name]
+    if not command then
+      return
+    end
+    if command:sub(1, 1) == ':' then
+      vim.cmd.packadd(event.data.spec.name)
+      vim.cmd(command:sub(2))
+    else
+      vim.system({ 'sh', '-c', command }, { cwd = event.data.path }):wait()
+    end
+  end,
 })
+
+local pack_specs = {}
+for _, spec in ipairs(ordered_specs) do
+  local source = spec[1]
+  local pack_spec = { src = source:match '^https?://' and source or ('https://github.com/' .. source) }
+  if spec.branch then
+    pack_spec.version = spec.branch
+  elseif spec.version then
+    local major = type(spec.version) == 'string' and spec.version:match '^(%d+)%.%*$'
+    pack_spec.version = major and vim.version.range(major) or spec.version
+  end
+  table.insert(pack_specs, pack_spec)
+  local build = type(spec.build) == 'function' and spec.build() or spec.build
+  if build then
+    build_commands[plugin_name(spec)] = build
+  end
+end
+
+vim.pack.add(pack_specs, { confirm = false, load = true })
+
+for _, spec in ipairs(ordered_specs) do
+  if spec.config then
+    spec.config()
+  elseif spec.opts then
+    require(plugin_module(spec)).setup(spec.opts)
+  end
+  for _, key in ipairs(spec.keys or {}) do
+    if type(key) == 'table' and type(key[2]) == 'function' then
+      vim.keymap.set(key.mode or 'n', key[1], key[2], { desc = key.desc, silent = key.silent })
+    end
+  end
+end
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
