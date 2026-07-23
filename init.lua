@@ -943,6 +943,26 @@ local plugin_specs = {
   },
 
   {
+    'folke/snacks.nvim',
+    config = function()
+      require('snacks').setup {
+        scroll = {
+          enabled = true,
+          animate = {
+            duration = { step = 10, total = 180 },
+            easing = 'outQuad',
+          },
+          animate_repeat = {
+            delay = 100,
+            duration = { step = 5, total = 50 },
+            easing = 'linear',
+          },
+        },
+      }
+    end,
+  },
+
+  {
     'hedyhli/outline.nvim',
     config = function()
       require('outline').setup {}
@@ -1005,22 +1025,6 @@ local plugin_specs = {
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
-
-      local animate = require 'mini.animate'
-      animate.setup {
-        cursor = { enable = false },
-        resize = { enable = false },
-        open = { enable = false },
-        close = { enable = false },
-        scroll = {
-          enable = true,
-          timing = animate.gen_timing.linear {
-            duration = 150,
-            unit = 'total',
-            easing = 'out',
-          },
-        },
-      }
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
