@@ -965,7 +965,20 @@ local plugin_specs = {
   {
     'hedyhli/outline.nvim',
     config = function()
-      require('outline').setup {}
+      require('outline').setup {
+        outline_items = {
+          show_symbol_details = true,
+          show_symbol_lineno = true,
+        },
+        outline_window = {
+          auto_jump = true,
+        },
+        preview_window = {
+          auto_preview = true,
+          open_hover_on_preview = false,
+          border = 'rounded',
+        },
+      }
       vim.keymap.set('n', '<leader>o', '<cmd>Outline<CR>', { desc = 'Toggle symbol outline' })
     end,
   },
