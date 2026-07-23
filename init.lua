@@ -1006,6 +1006,22 @@ local plugin_specs = {
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
 
+      local animate = require 'mini.animate'
+      animate.setup {
+        cursor = { enable = false },
+        resize = { enable = false },
+        open = { enable = false },
+        close = { enable = false },
+        scroll = {
+          enable = true,
+          timing = animate.gen_timing.linear {
+            duration = 150,
+            unit = 'total',
+            easing = 'out',
+          },
+        },
+      }
+
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
       --  and try some other statusline plugin
