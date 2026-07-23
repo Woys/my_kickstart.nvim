@@ -95,7 +95,7 @@ vim.g.have_nerd_font = false
 
 -- Open files from netrw in a vertical split on the right.
 vim.g.netrw_altv = 1
-vim.g.netrw_winsize = -70
+vim.g.netrw_winsize = -30
 vim.g.netrw_liststyle = 3
 
 -- [[ Setting options ]]
@@ -214,7 +214,8 @@ local function toggle_file_tree()
     end
   end
 
-  vim.cmd 'topleft 70vnew'
+  local tree_width = math.max(12, math.floor(vim.o.columns * 0.25))
+  vim.cmd('topleft ' .. tree_width .. 'vnew')
   vim.cmd 'Explore'
 end
 
