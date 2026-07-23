@@ -973,11 +973,6 @@ local plugin_specs = {
         outline_window = {
           auto_jump = true,
         },
-        preview_window = {
-          auto_preview = true,
-          open_hover_on_preview = false,
-          border = 'rounded',
-        },
       }
       vim.keymap.set('n', '<leader>o', '<cmd>Outline<CR>', { desc = 'Toggle symbol outline' })
     end,
